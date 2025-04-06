@@ -24,6 +24,29 @@ resource "aws_internet_gateway" "main"{
   )
 }
 
+resource "aws_eip" "nat" {
+  domain   = "vpc"
+}
+
+resource "aws_nat_gateway" "example" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[o].id
+
+  tags = merge(
+    var.common_tags,
+    var.nat_gateway_tags,
+    {
+      Name = local.resource_name
+    }
+  )
+  
+
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.main]
+}
+
+#public subnet
 resource "aws_subnet" "pubilc"{
   count = length(var.public_subnet_cidrs)
   vpc_id     = aws_vpc.main.id
@@ -39,6 +62,8 @@ resource "aws_subnet" "pubilc"{
   )
 }
 
+
+#private subnets
 resource "aws_subnet" "private"{
   count = length(var.private_subnet_cidrs)
   vpc_id     = aws_vpc.main.id
@@ -53,6 +78,7 @@ resource "aws_subnet" "private"{
   )
 }
 
+#database subnets
 resource "aws_subnet" "database"{
   count = length(var.database_subnet_cidrs)
   vpc_id     = aws_vpc.main.id
@@ -65,5 +91,23 @@ resource "aws_subnet" "database"{
         Name:"${local.resource_name}-database-${local.azs[count.index]}"
     }
   )
+}
+
+resource "aws_route" "public" {
+  route_table_id            = aws_route_table.public.id
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id = aws_internet_gateway.main.id
+}
+
+resource "aws_route" "private" {
+  route_table_id            = aws_route_table.private.id
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id = aws_internet_gateway.example.id
+}
+
+resource "aws_route" "database" {
+  route_table_id            = aws_route_table.database.id
+  destination_cidr_block    = "0.0.0.0/0"
+  gateway_id = aws_internet_gateway.main.id
 }
 

@@ -33,6 +33,11 @@ variable "igw_tags"{
     default = {}
   
 }
+
+variable "nat_gateway_tags" {
+    default = {}
+}
+
 #Public subnet
 variable "public_subnet_cidrs"{
     type = list
